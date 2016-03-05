@@ -1,4 +1,3 @@
-
 ---
   html_document:
     toc: true
@@ -10,7 +9,6 @@
 knitr::opts_chunk$set(tidy=TRUE, highlight=TRUE, dev="png",
                cache=TRUE, highlight=TRUE, autodep=TRUE, warning=FALSE, error=FALSE,
                message=FALSE, prompt=TRUE, comment='', fig.cap='')
-
 ```
 
 This project is to look at comparing pre vs post-transplantion in two cell lines
@@ -459,6 +457,7 @@ the metadata to a file so we can import it later.
 ```{r cleanup}
 a_samples = a_combined_samples
 b_samples = b_combined_samples
-save(b_counts, a_counts, b_samples, a_samples, file="mergedData.RData")
+dir.create("../processed")
+save(b_counts, a_counts, b_samples, a_samples, file="../processed/cleaned.RData")
 rm(list=ls())
 ```
