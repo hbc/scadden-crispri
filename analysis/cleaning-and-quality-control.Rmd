@@ -6,7 +6,7 @@
 ---
 
 ```{r setup, echo=FALSE}
-knitr::opts_chunk$set(tidy=TRUE, highlight=TRUE, dev="png",
+knitr::opts_chunk$set(tidy=TRUE, highlight=TRUE, dev="png", cache.path="cache/cleaning",
                cache=TRUE, highlight=TRUE, autodep=TRUE, warning=FALSE, error=FALSE,
                message=FALSE, prompt=TRUE, comment='', fig.cap='')
 ```
@@ -51,6 +51,8 @@ b_new_fn = "../data/new-library-b-counts.csv"
 ```{r libraries}
 library(readr)
 library(tidyr)
+library(dplyr)
+library(reshape2)
 library(dplyr)
 ```
 
@@ -451,13 +453,24 @@ rownames(b_counts) = b_counts$UID
 b_counts$UID = NULL
 ```
 
-Now we are ready to rock. We'll dump out the filtered tables of counts and
-the metadata to a file so we can import it later.
+Now we are ready to rock. We'll dump out the filtered tables of counts,
+metadata about the samples and information about the GECKO libraries
+to a file so we have everything we need to dig into the data further.
 
 ```{r cleanup}
-a_samples = a_combined_samples
-b_samples = b_combined_samples
+a_samples = subset(a_combined_samples, derived %in% colnames(a_counts)) %>%
+              select(-run, -replicate, -sample) %>%
+              unique()
+b_samples = subset(b_combined_samples, derived %in% colnames(b_counts)) %>%
+              select(-run, -replicate, -sample) %>%
+              unique()
 dir.create("../processed")
-save(b_counts, a_counts, b_samples, a_samples, file="../processed/cleaned.RData")
-rm(list=ls())
+rownames(a_samples) = a_samples$derived
+rownames(b_samples) = b_samples$derived
+a_counts = a_counts[, order(colnames(a_counts))]
+a_samples = a_samples[colnames(a_counts),]
+b_counts = b_counts[, order(colnames(b_counts))]
+b_samples = b_samples[colnames(b_counts),]
+save(b_counts, a_counts, b_samples, a_samples, a_gecko, b_gecko,
+     file="../processed/cleaned.RData")
 ```
