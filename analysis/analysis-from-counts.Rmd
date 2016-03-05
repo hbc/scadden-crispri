@@ -10,15 +10,28 @@
 knitr::opts_chunk$set(tidy=TRUE, highlight=TRUE, dev="png",
                cache=TRUE, highlight=TRUE, autodep=TRUE, warning=FALSE, error=FALSE,
                message=FALSE, prompt=TRUE, comment='', fig.cap='')
+
 ```
 
-This project is to look at comparing pre vs post-transplantion in two cell
-lines with two different versions of the Gecko library (A and B). The goal is
-to look for genes depleted across both versions of the Gecko library and both
-cell lines.
+This project is to look at comparing pre vs post-transplantion in two cell lines
+with two different versions of the Gecko library (A and B), working with Bess
+Miller from the Scadden lab. The overall goal is to look for genes depleted
+across both versions of the Gecko library and both cell lines.
 
-We were given tables of counts and the FASTQ files. For a first analysis
-we'll just use the table of counts.
+We were given tables of counts and the FASTQ files that were used to generate
+those counts. For a first analysis we'll just use the table of counts instead of
+redoing the alignment and counting, and leave revisiting aligning as an option.
+
+This report is broken up into two parts, this document contains the data cleaning,
+quality control of the samples and spitting out the cleaned data for
+differential expression calling.
+
+The data cleaning involves:
+
+1. Creating a standard ID for all technical replicates from the same sample.
+2. Summing counts of technical replicates from the multiple sequencing runs.
+3. Creating more rich metadata fields about each sample.
+4. Dropping samples which appear to have failed.
 
 # Data prep
 Rather than remapping the data we'll start from the count files already
@@ -84,6 +97,7 @@ cleanup_new_counts = function(fn) {
   counts$UID = NULL
   return(counts)
 }
+
 
 derive_sample_data = function(pre, post) {
    pre_df = data.frame(sample=colnames(pre), transplant="pre")
@@ -439,4 +453,12 @@ rownames(b_counts) = b_counts$UID
 b_counts$UID = NULL
 ```
 
-Now we are ready to rock.
+Now we are ready to rock. We'll dump out the filtered tables of counts and
+the metadata to a file so we can import it later.
+
+```{r cleanup}
+a_samples = a_combined_samples
+b_samples = b_combined_samples
+save(b_counts, a_counts, b_samples, a_samples, file="mergedData.RData")
+rm(list=ls())
+```
