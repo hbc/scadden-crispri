@@ -393,29 +393,14 @@ plotPCA(vst, intgroup=c("transplant"))
 
 The two libraries are pretty similar.
 
-### Differential expression
-
-Over Basecamp, the questions that wanted to be answered from this data are
-this:
-
-'We're interested in comparing the post-transplant samples (MA, MB, HA, or HB) to the pre-transplant samples. We also have an in vitro comparison to more easily screen out sgRNAs targeting essential cellular components like ribosome genes. Those files aren't in the folder yet, but I should have the sequencing back soon. Ideally, I think we are looking for genes that are depleted across both libraries and in both cell lines compared to the pre-transplant samples. We would probably be more interested in genes that are depleted in the in vivo condition but not in the in vitro condition, although that isn't absolute.'
-
-We can get at those genes by looking at a model that looks like this:
-`~line + transplant` and then looking at the coefficient on `transplant`,
-comparing the `pre` and `post` samples to each other.
-of which library was used and which cell line was used.
-
-We also noticed that there seem to be an separation of the samples based on
-how many total counts there were in the sample. We will also add this to
-the model, to try to eliminate some false positives that might crop up due
-to that variation.
-
-Before we do this, though, we have to combine the samples that are technical
+## Final cleanup
+Before we are done, we have to combine the samples that are technical
 replicates of each other. It wasn't 100% clear over Basecamp, but I think
 that the combination of the cell line, the library that was run and its
 transplant status specifies which sample it is. We added that column as
-`derived` to the sample metadata. Now we sum all of the counts for each
-sample with the same derived name for the `Gecko A` library:
+`derived` to the sample metadata to use as the identifier for which
+sample a set of counts is from, then we sum all of the counts for each
+sample with the same derived name. For the `Gecko A` library:
 
 ```{r melt-a-counts, cache=FALSE}
 a_melting = a_combined_counts
@@ -451,6 +436,20 @@ b_counts = b_melting %>%
 b_counts = data.frame(b_counts)
 rownames(b_counts) = b_counts$UID
 b_counts$UID = NULL
+```
+
+We also think there may have been a sample swap:
+
+```
+However, looking at those sheets, it looks like the HM-A and HM-B samples were mislabeled. The HM-A samples have high library B reads, and low library A reads, while the HM-B samples have low library B reads and high library A reads. I think that HM-A1 should actually be HM-B1 and HM-B1 should actually be HM-A1, and the same for HM-A2 and HM-B2.
+```
+
+So we'll fix that here, leaving the derived names the same and just switching
+the library.
+
+```{r fix-swap}
+a_samples$library[a_samples$derived %in% c("HM_B_pre_1", "HM_B_pre_2")] = "A"
+b_samples$library[b_samples$derived %in% c("HM_A_pre_1", "HM_A_pre_2")] = "B"
 ```
 
 Now we are ready to rock. We'll dump out the filtered tables of counts,
