@@ -94,12 +94,9 @@ What are those UIDs with low dispersion? They tend to be UIDs that
 are low in the post transplant samples.
 
 ```{r low-dispersion-a}
+a_gecko$UID = rownames(a_gecko)
 bm = data.frame(mcols(dds)[, c("baseMean", "dispGeneEst")])
 bm$UID = rownames(dds)
-
-ggplot(bm, aes(baseMean, dispGeneEst)) + geom_point() + scale_x_log10() +
-  scale_y_log10()
-
 low = subset(bm, baseMean < 10 & dispGeneEst < 10) %>% left_join(a_gecko, by="UID")
 low_counts = a_counts[low$UID,]
 low_counts$UID = rownames(low_counts)
@@ -183,9 +180,6 @@ are low in the post transplant samples.
 ```{r low-dispersion-b}
 bm = data.frame(mcols(dds)[, c("baseMean", "dispGeneEst")])
 bm$UID = rownames(dds)
-
-ggplot(bm, aes(baseMean, dispGeneEst)) + geom_point() + scale_x_log10() +
-  scale_y_log10()
 b_gecko$UID = rownames(b_gecko)
 low = subset(bm, baseMean < 10 & dispGeneEst < 10) %>% left_join(b_gecko, by="UID")
 low_counts = b_counts[low$UID,]
@@ -289,5 +283,9 @@ That's a first pass look at the results-- for future experiments, it would be go
 to balance the design more and include more control samples. If we had similar
 numbers of in vitro, pre transplant and post-transplant samples we could do a
 nicer job fitting the models and a nicer job calling real differences.
+
+I spit out the two lists of differentially expressed genes between the
+pre and post transplant samples. The first list: [withhk.txt](withhk.txt) includes
+the housekeeping genes identified in the in vitro sample and the second list: [nohk.txt](nohk.txt) does not have them.
 
 Let us know what you think.
