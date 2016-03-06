@@ -400,7 +400,28 @@ that the combination of the cell line, the library that was run and its
 transplant status specifies which sample it is. We added that column as
 `derived` to the sample metadata to use as the identifier for which
 sample a set of counts is from, then we sum all of the counts for each
-sample with the same derived name. For the `Gecko A` library:
+sample with the same derived name.
+
+
+We also think there may have been a sample swap:
+
+```
+However, looking at those sheets, it looks like the HM-A and HM-B samples were mislabeled. The HM-A samples have high library B reads, and low library A reads, while the HM-B samples have low library B reads and high library A reads. I think that HM-A1 should actually be HM-B1 and HM-B1 should actually be HM-A1, and the same for HM-A2 and HM-B2.
+```
+
+So we'll fix that here, before combining. We need to swap the derived
+names and the library for those samples.
+
+```{r fix-swap}
+a_combined_samples["HM.B1", c("library", "derived")] = c("A", "HM_A_pre_1")
+a_combined_samples["HM.B2", c("library", "derived")] = c("A", "HM_A_pre_2")
+b_combined_samples["HM.A1", c("library", "derived")] = c("B", "HM_B_pre_1")
+b_combined_samples["HM.A2", c("library", "derived")] = c("B", "HM_B_pre_2")
+```
+
+Now we'll merge the technical replicates.
+
+For the `Gecko A` library:
 
 ```{r melt-a-counts, cache=FALSE}
 a_melting = a_combined_counts
@@ -438,31 +459,20 @@ rownames(b_counts) = b_counts$UID
 b_counts$UID = NULL
 ```
 
-We also think there may have been a sample swap:
-
-```
-However, looking at those sheets, it looks like the HM-A and HM-B samples were mislabeled. The HM-A samples have high library B reads, and low library A reads, while the HM-B samples have low library B reads and high library A reads. I think that HM-A1 should actually be HM-B1 and HM-B1 should actually be HM-A1, and the same for HM-A2 and HM-B2.
-```
-
-So we'll fix that here, leaving the derived names the same and just switching
-the library.
-
-```{r fix-swap}
-a_samples$library[a_samples$derived %in% c("HM_B_pre_1", "HM_B_pre_2")] = "A"
-b_samples$library[b_samples$derived %in% c("HM_A_pre_1", "HM_A_pre_2")] = "B"
-```
-
 Now we are ready to rock. We'll dump out the filtered tables of counts,
 metadata about the samples and information about the GECKO libraries
 to a file so we have everything we need to dig into the data further.
 
-```{r cleanup}
+```{r uniquify-samples}
 a_samples = subset(a_combined_samples, derived %in% colnames(a_counts)) %>%
               select(-run, -replicate, -sample) %>%
               unique()
 b_samples = subset(b_combined_samples, derived %in% colnames(b_counts)) %>%
               select(-run, -replicate, -sample) %>%
               unique()
+```
+
+```{r write-swap}
 dir.create("../processed")
 rownames(a_samples) = a_samples$derived
 rownames(b_samples) = b_samples$derived
