@@ -1,0 +1,142 @@
+---
+  html_document:
+    toc: true
+    highlight: zenburn
+    theme: united
+---
+
+```{r setup, echo=FALSE}
+knitr::opts_chunk$set(tidy=TRUE, highlight=TRUE, dev="png",
+               cache=TRUE, highlight=TRUE, autodep=TRUE, warning=FALSE, error=FALSE,
+               message=FALSE, prompt=TRUE, comment='', fig.cap='')
+```
+
+
+### Differential expression
+
+Over Basecamp, the questions that wanted to be answered from this data are
+this:
+
+'We're interested in comparing the post-transplant samples (MA, MB, HA, or HB) to the pre-transplant samples. We also have an in vitro comparison to more easily screen out sgRNAs targeting essential cellular components like ribosome genes. Those files aren't in the folder yet, but I should have the sequencing back soon. Ideally, I think we are looking for genes that are depleted across both libraries and in both cell lines compared to the pre-transplant samples. We would probably be more interested in genes that are depleted in the in vivo condition but not in the in vitro condition, although that isn't absolute.'
+
+We can get at those genes by looking at a model that looks like this:
+`~line + transplant` and then looking at the coefficient on `transplant`,
+comparing the `pre` and `post` samples to each other.
+of which library was used and which cell line was used.
+
+In the quality control steps of the analysis, we made the observation the
+samples seem to separate along the second principal component based on
+how many total counts there were in the sample. We will also add this to
+the model, to try to eliminate some false positives that might crop up due
+to that variation.
+
+```{r load-processed-data}
+load("../processed/cleaned.RData")
+```
+
+### Add total counts to metadata
+Here we added the log total counts to the metadata about each sample, so we can
+use it as a term in the model and correct for its effect.
+
+```{r add-total-counts}
+a_samples[colnames(a_counts), "log_total_counts"] = log(colSums(a_counts))
+b_samples[colnames(b_counts), "log_total_counts"] = log(colSums(b_counts))
+```
+
+### DESeq2
+We'll fit GLM with DESeq2 to the data-- DESeq2 is designed to handle
+gene expression from RNA-seq experiments, but can be used on any count
+data that is expected to be able to be modelled by a negative binomial
+distribution and has a mean-variance relationship in the data that we can
+leverage to share information across the observations.
+
+```{r deseq-setup}
+library(DESeq2)
+design = ~log_total_counts+line+transplant
+setup_deseq2 = function(counts, samples) {
+   samples = subset(samples, line %in% c("HM", "MLLAF9"))
+   counts = counts[rowSums(counts) > 0, samples$derived]
+   dds = DESeqDataSetFromMatrix(countData=counts,
+         colData=samples, design=design)
+   return(dds)
+}
+```
+
+One super bad thing about this data is that there are not that many observations
+pre-transplant, there are only two replicates for each cell line. It would be
+better if these were more balanced in the future.
+
+### Library A
+```{r setup-a}
+dds = setup_deseq2(a_counts, a_samples)
+dds = estimateSizeFactors(dds)
+dds = DESeq(dds)
+```
+
+```{r deseq-diagnostics, results='asis'}
+library(vsn)
+vsd = varianceStabilizingTransformation(dds)
+meanSdPlot(log2(counts(dds,normalized=TRUE) + 1))
+meanSdPlot(assay(vsd))
+```
+
+We can see that many of the counts of UIDs are undispersed, meaning the counts
+for those UIDS are less variable than other UIDS of the same expression level.
+This tends to occur for UIDs that are expressed at a low level. Part of
+this might be because the samples are not balanced, there are 10x more test
+samples than control samples, and so the measurement of variability is dominated
+by the test samples.
+
+```{r dispersion-a}
+plotDispEsts(dds)
+a_res = results(dds, contrast=c("transplant", "pre", "post"))
+a_res = a_res[order(a_res$pvalue),]
+a_res = data.frame(a_res)
+a_res$UID = rownames(a_res)
+a_gecko$UID = rownames(a_gecko)
+a_fil = subset(a_res, padj < 0.05 & log2FoldChange > 2) %>%
+          left_join(a_gecko, by=c("UID"="UID"))
+a_multiple = a_fil[duplicated(a_fil$gene_id),]
+```
+
+### Library B
+```{r setup-b}
+dds = setup_deseq2(b_counts, b_samples)
+dds = estimateSizeFactors(dds)
+dds = DESeq(dds)
+```
+
+```{r deseq-diagnostics-b, results='asis'}
+library(vsn)
+vsd = varianceStabilizingTransformation(dds)
+meanSdPlot(log2(counts(dds,normalized=TRUE) + 1))
+meanSdPlot(assay(vsd))
+```
+
+We can see that many of the counts of UIDs are undispersed, meaning the counts
+for those UIDS are less variable than other UIDS of the same expression level.
+This tends to occur for UIDs that are expressed at a low level. Part of
+this might be because the samples are not balanced, there are 10x more test
+samples than control samples, and so the measurement of variability is dominated
+by the test samples.
+
+```{r dispersion-b}
+plotDispEsts(dds)
+b_res = results(dds, contrast=c("transplant", "pre", "post"))
+b_res = b_res[order(b_res$pvalue),]
+b_res = data.frame(b_res)
+b_res$UID = rownames(b_res)
+b_gecko$UID = rownames(b_gecko)
+b_fil = subset(b_res, padj < 0.05 & log2FoldChange > 2) %>%
+          left_join(b_gecko, by=c("UID"="UID"))
+b_multiple = b_fil[duplicated(b_fil$gene_id),]
+```
+
+## Intersection of both
+Now we will do something simple and intersect the lists of genes that appear
+in both differentially expressed lists. So these are all of the genes that
+had at least two of their UIDs flagged as being differentially expressed
+between pre and post transplantation.
+```{r intersection-both}
+in_both = intersect(a_multiple$gene_id, b_multiple$gene_id)
+```
