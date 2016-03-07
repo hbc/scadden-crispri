@@ -4,4 +4,7 @@ to look for genes depleted across both versions of the Gecko library and both
 cell lines.
 
 This repository contains everything starting from the provided count data
-to run the analysis and output the results.
+to run the analysis and output the results. Below is a link to the project
+page:
+
+[Scadden CRISPRi project](http://bioinformatics.sph.harvard.edu/scadden-crispri/)
