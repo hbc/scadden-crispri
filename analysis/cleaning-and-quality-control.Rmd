@@ -6,12 +6,12 @@ output:
     variant: markdown_github
   toc: true
 ---
-
 ```{r setup, echo=FALSE}
 knitr::opts_chunk$set(tidy=TRUE, highlight=TRUE, dev="png", cache.path="cache/cleaning",
                cache=TRUE, highlight=TRUE, autodep=TRUE, warning=FALSE, error=FALSE,
                message=FALSE, prompt=TRUE, comment='', fig.cap='')
 ```
+### Cleaning and quality control
 
 This project is to look at comparing pre vs post-transplantion in two cell lines
 with two different versions of the Gecko library (A and B), working with Bess
